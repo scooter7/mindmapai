@@ -14,7 +14,6 @@ st.title("Interactive Mindmapping Tool")
 # -------------------------------------------------------------------
 # Session State Initialization
 # -------------------------------------------------------------------
-# Ensure session state contains our mindmap data and the topic text
 if "mindmap_data" not in st.session_state:
     st.session_state["mindmap_data"] = None
 if "topic_input" not in st.session_state:
@@ -23,15 +22,13 @@ if "topic_input" not in st.session_state:
 # -------------------------------------------------------------------
 # Example Topic Button
 # -------------------------------------------------------------------
-# Place the "Load Example Topic" button and an explanation side by side
 col1, col2 = st.columns([1, 3])
 with col1:
     if st.button("Load Example Topic"):
-        # Set an example topic in session state.
         st.session_state["topic_input"] = (
             "Example: AI and machine learning skills needed for manufacturing. "
             "Provide a comprehensive mindmap that covers training programs, "
-            "community colleges, and online courses. Include links to community colleges, "
+            "community colleges, and online courses. Include links to community colleges in Iowa, "
             "online resources, and industry certifications that support learning and development."
         )
 with col2:
@@ -43,7 +40,6 @@ with col2:
 # -------------------------------------------------------------------
 # Topic Input Field
 # -------------------------------------------------------------------
-# Use st.text_area with the session state value so it can be updated by the example button.
 topic = st.text_area(
     "Enter a topic for the mindmap:",
     placeholder="e.g., AI skills needed in the manufacturing industry",
@@ -76,6 +72,7 @@ if st.button("Generate Mindmap"):
                 )
                 # Extract and clean up the GPT‑4 output
                 mindmap_json = response.choices[0].message.content.strip()
+                
                 # Remove markdown code block formatting if present
                 if mindmap_json.startswith("```"):
                     lines = mindmap_json.splitlines()
@@ -84,8 +81,17 @@ if st.button("Generate Mindmap"):
                     if lines and lines[-1].strip().startswith("```"):
                         lines = lines[:-1]
                     mindmap_json = "\n".join(lines).strip()
+                
+                # Extract only the JSON part by taking the substring from the first '{' to the last '}'
+                start_index = mindmap_json.find("{")
+                end_index = mindmap_json.rfind("}")
+                if start_index == -1 or end_index == -1:
+                    raise ValueError("Could not find valid JSON boundaries in the response.")
+                mindmap_json = mindmap_json[start_index:end_index + 1]
+                
                 if not mindmap_json:
-                    raise ValueError("Received empty response from GPT-4.")
+                    raise ValueError("Received empty JSON after extraction from GPT-4 response.")
+                
                 mindmap_data = json.loads(mindmap_json)
                 st.session_state["mindmap_data"] = mindmap_data
             except Exception as e:
@@ -99,13 +105,12 @@ if st.button("Generate Mindmap"):
 if st.session_state["mindmap_data"]:
     mindmap_data = st.session_state["mindmap_data"]
 
-    # Prepare nodes and edges for streamlit-agraph visualization.
-    nodes = [Node(id=node["id"], label=node["label"], size=20) 
+    # Prepare nodes and edges for visualization
+    nodes = [Node(id=node["id"], label=node["label"], size=20)
              for node in mindmap_data.get("nodes", [])]
-    edges = [Edge(source=edge["source"], target=edge["target"]) 
+    edges = [Edge(source=edge["source"], target=edge["target"])
              for edge in mindmap_data.get("edges", [])]
 
-    # Configure the agraph display with increased canvas width and node spacing.
     config = Config(
         width=1200,           # Increased canvas width
         height=500,
@@ -119,10 +124,7 @@ if st.session_state["mindmap_data"]:
     st.subheader("Interactive Mindmap")
     agraph(nodes=nodes, edges=edges, config=config)
 
-    # -------------------------------------------------------------------
-    # Node Detail Display (via dropdown selection)
-    # -------------------------------------------------------------------
-    # The following dropdown allows users to view more details about a node.
+    # Node Detail Display via dropdown
     node_options = {node["label"]: node for node in mindmap_data.get("nodes", [])}
     selected_label = st.selectbox(
         "Select a node to view details:",
