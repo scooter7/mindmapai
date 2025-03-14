@@ -56,13 +56,12 @@ topic = st.text_area(
 if st.button("Generate Mindmap"):
     if topic.strip():
         with st.spinner("Generating mindmap..."):
-            # Updated prompt instructs GPT‑4 to use only valid, reputable URLs.
             prompt = (
                 f"Generate a JSON structure for a mindmap on the topic: '{topic}'. "
                 "The JSON should include a list of nodes where each node contains 'id', 'label', and 'explanation', "
                 "and optionally 'resources' which is a list of valid URLs from reputable sources that reference "
-                "relevant news stories or online articles discussing the topic. Do not use generic placeholder URLs "
-                "like 'https://www.example.com/...'. Also, include a list of edges where each edge contains 'source' and 'target'. "
+                "the online educational organizations (like Coursera or EdX) or educational institutions as well asrelevant news stories or online articles discussing the topic. Do not use generic placeholder URLs. "
+                "Also, include a list of edges where each edge contains 'source' and 'target'. "
                 "Output only valid JSON without any additional text or markdown formatting."
             )
             try:
@@ -158,9 +157,11 @@ if st.button("Send", key="send_chat"):
     if chat_input.strip():
         # Append the user's message to chat history
         st.session_state.chat_history.append({"role": "user", "message": chat_input})
-        # Build conversation context with an initial system prompt
+        # Build conversation context with an initial system prompt.
         conversation = [{"role": "system", "content": "You are an expert assisting with a discussion on the provided mindmap topic and resources."}]
-        conversation.extend(st.session_state.chat_history)
+        # Convert chat history items to the required format (with key 'content')
+        for entry in st.session_state.chat_history:
+            conversation.append({"role": entry["role"], "content": entry["message"]})
         try:
             chat_response = openai.chat.completions.create(
                 model="gpt-4",
