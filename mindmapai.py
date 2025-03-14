@@ -8,7 +8,7 @@ openai.api_key = st.secrets["openai"]["api_key"]
 
 st.title("Interactive Mindmapping Tool")
 
-# Store mindmap data in session state to avoid UI resets
+# Initialize session state for mindmap data if not already set
 if "mindmap_data" not in st.session_state:
     st.session_state["mindmap_data"] = None
 
@@ -19,7 +19,6 @@ topic = st.text_input(
     key="topic_input"
 )
 
-# Generate mindmap on button click
 if st.button("Generate Mindmap"):
     if topic:
         with st.spinner("Generating mindmap..."):
@@ -39,18 +38,23 @@ if st.button("Generate Mindmap"):
                     temperature=0.7,
                     max_tokens=1000,
                 )
-                # Extract and clean up the GPT-4 output
+                # Extract and clean up the GPT‑4 output
                 mindmap_json = response.choices[0].message.content.strip()
+                
                 # Remove markdown code block formatting if present
                 if mindmap_json.startswith("```"):
                     lines = mindmap_json.splitlines()
+                    # Remove the first line (```json or ```)
                     if lines[0].startswith("```"):
                         lines = lines[1:]
+                    # Remove the last line if it's just ```
                     if lines and lines[-1].strip().startswith("```"):
                         lines = lines[:-1]
                     mindmap_json = "\n".join(lines).strip()
+                
                 if not mindmap_json:
                     raise ValueError("Received empty response from GPT-4.")
+                
                 mindmap_data = json.loads(mindmap_json)
                 st.session_state["mindmap_data"] = mindmap_data
             except Exception as e:
@@ -58,11 +62,11 @@ if st.button("Generate Mindmap"):
     else:
         st.error("Please enter a topic.")
 
-# Display the interactive mindmap if it exists
+# If mindmap data exists in session state, display the interactive mindmap
 if st.session_state["mindmap_data"]:
     mindmap_data = st.session_state["mindmap_data"]
 
-    # Prepare nodes and edges for agraph
+    # Prepare nodes and edges for streamlit-agraph
     nodes = []
     for node in mindmap_data.get("nodes", []):
         nodes.append(Node(id=node["id"], label=node["label"], size=20))
@@ -71,6 +75,7 @@ if st.session_state["mindmap_data"]:
     for edge in mindmap_data.get("edges", []):
         edges.append(Edge(source=edge["source"], target=edge["target"]))
 
+    # Configure agraph display options
     config = Config(
         width=800,
         height=500,
@@ -81,23 +86,21 @@ if st.session_state["mindmap_data"]:
     )
 
     st.subheader("Interactive Mindmap")
-    agraph_response = agraph(nodes=nodes, edges=edges, config=config)
+    agraph(nodes=nodes, edges=edges, config=config)
 
-    # Debug: Uncomment the line below to inspect the raw agraph response
-    # st.write("Agraph response:", agraph_response)
-
-    # Check if a node has been clicked (look for the "id" key in the response)
-    if agraph_response and "id" in agraph_response:
-        selected_node_id = agraph_response["id"]
-        selected_node = next(
-            (node for node in mindmap_data.get("nodes", []) if node["id"] == selected_node_id),
-            None
-        )
-        if selected_node:
-            st.sidebar.header(selected_node["label"])
-            st.sidebar.write(selected_node.get("explanation", "No explanation provided."))
-            resources = selected_node.get("resources", [])
-            if resources:
-                st.sidebar.subheader("Resources")
-                for res in resources:
-                    st.sidebar.write(res)
+    # Additional interactivity: select a node to view its details.
+    node_options = {node["label"]: node for node in mindmap_data.get("nodes", [])}
+    selected_label = st.selectbox(
+        "Select a node to view details:",
+        options=list(node_options.keys()),
+        key="node_select"
+    )
+    if selected_label:
+        selected_node = node_options[selected_label]
+        st.sidebar.header(selected_node["label"])
+        st.sidebar.write(selected_node.get("explanation", "No explanation provided."))
+        resources = selected_node.get("resources", [])
+        if resources:
+            st.sidebar.subheader("Resources")
+            for res in resources:
+                st.sidebar.write(res)
