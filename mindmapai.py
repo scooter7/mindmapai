@@ -29,7 +29,7 @@ def is_valid_url(url):
     try:
         response = requests.head(url, allow_redirects=True, timeout=5)
         return response.status_code == 200
-    except Exception as e:
+    except Exception:
         return False
 
 # =============================================================================
@@ -87,6 +87,7 @@ if st.button("Generate Mindmap"):
                 )
                 # Extract and clean up the GPT‑4 output
                 mindmap_json = response.choices[0].message.content.strip()
+                
                 # Remove markdown formatting if present
                 if mindmap_json.startswith("```"):
                     lines = mindmap_json.splitlines()
@@ -95,14 +96,17 @@ if st.button("Generate Mindmap"):
                     if lines and lines[-1].strip().startswith("```"):
                         lines = lines[:-1]
                     mindmap_json = "\n".join(lines).strip()
+
                 # Extract the JSON substring between the first '{' and last '}'
                 start_index = mindmap_json.find("{")
                 end_index = mindmap_json.rfind("}")
                 if start_index == -1 or end_index == -1:
                     raise ValueError("Could not find valid JSON boundaries in the response.")
                 mindmap_json = mindmap_json[start_index:end_index + 1]
+
                 if not mindmap_json:
                     raise ValueError("Received empty JSON after extraction from GPT-4 response.")
+                
                 mindmap_data = json.loads(mindmap_json)
                 st.session_state["mindmap_data"] = mindmap_data
             except Exception as e:
@@ -124,60 +128,63 @@ if st.session_state["mindmap_data"]:
 
     # Configure the agraph display with increased canvas width and node spacing.
     config = Config(
-        width=1200,           # Increased canvas width for more horizontal space
+        width=1200,  # Increased canvas width for more horizontal space
         height=500,
         directed=True,
         physics=True,
         nodeHighlightBehavior=True,
         highlightColor="#F7A7A6",
-        linkDistance=200      # More space between nodes
+        linkDistance=200  # More space between nodes
     )
 
     st.subheader("Interactive Mindmap")
     agraph(nodes=nodes, edges=edges, config=config)
 
-    # Optional: Node Details via a dropdown (you may remove this if using only chat)
+    # Optional: Node Details via a dropdown
     node_options = {node["label"]: node for node in mindmap_data.get("nodes", [])}
     selected_label = st.selectbox(
         "Select a node to view details:",
         options=list(node_options.keys()),
         key="node_select"
     )
+
     if selected_label:
-    selected_node = node_options[selected_label]
-    st.sidebar.header(selected_node["label"])
-    st.sidebar.write(selected_node.get("explanation", "No explanation provided."))
+        selected_node = node_options[selected_label]
+        st.sidebar.header(selected_node["label"])
+        st.sidebar.write(selected_node.get("explanation", "No explanation provided."))
 
-    # Ensure 'resources' is always a list and properly formatted
-    resources = selected_node.get("resources", [])
-    if not isinstance(resources, list):  # Ensure it’s a list
-        resources = [resources] if isinstance(resources, str) else []
+        # Ensure 'resources' is always a list and properly formatted
+        resources = selected_node.get("resources", [])
+        if not isinstance(resources, list):  # Ensure it's a list
+            resources = [resources] if isinstance(resources, str) else []
 
-    if resources:
-        st.sidebar.subheader("Resources")
-        for res in resources:
-            if isinstance(res, str) and is_valid_url(res):  # Ensure valid URL before displaying
-                st.sidebar.write(f"[{res}]({res})")  # Display clickable links
+        if resources:
+            st.sidebar.subheader("Resources")
+            for res in resources:
+                if isinstance(res, str) and is_valid_url(res):  # Ensure valid URL before displaying
+                    st.sidebar.write(f"[{res}]({res})")  # Display clickable links
 
 # =============================================================================
 # Discussion Chat Section
 # =============================================================================
 st.markdown("## Discussion Chat")
-st.markdown(
-    "Use the chat below to discuss the topic or any specific resources. "
-)
+st.markdown("Use the chat below to discuss the topic or any specific resources.")
 
 # Chat input field
 chat_input = st.text_input("Your message:", key="chat_input")
+
 if st.button("Send", key="send_chat"):
     if chat_input.strip():
         # Append the user's message to chat history
         st.session_state.chat_history.append({"role": "user", "message": chat_input})
-        # Build conversation context with an initial system prompt.
+
+        # Build conversation context with an initial system prompt
         conversation = [{"role": "system", "content": "You are an expert assisting with a discussion on the provided mindmap topic and resources."}]
+
         # Convert chat history items to the required format (with key 'content')
         for entry in st.session_state.chat_history:
             conversation.append({"role": entry["role"], "content": entry["message"]})
+
         try:
             chat_response = openai.chat.completions.create(
                 model="gpt-4o",
