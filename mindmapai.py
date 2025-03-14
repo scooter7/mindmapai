@@ -1,6 +1,7 @@
 import streamlit as st
 import openai
 import json
+import requests  # New import for URL validation
 from streamlit_agraph import agraph, Node, Edge, Config
 
 # Set the page layout to wide for more horizontal space
@@ -20,6 +21,16 @@ if "topic_input" not in st.session_state:
     st.session_state["topic_input"] = ""
 if "chat_history" not in st.session_state:
     st.session_state["chat_history"] = []  # to store conversation messages
+
+# =============================================================================
+# Helper Function: Validate URLs
+# =============================================================================
+def is_valid_url(url):
+    try:
+        response = requests.head(url, allow_redirects=True, timeout=5)
+        return response.status_code == 200
+    except Exception as e:
+        return False
 
 # =============================================================================
 # Example Topic Button (to auto-fill the topic text area)
@@ -60,7 +71,7 @@ if st.button("Generate Mindmap"):
                 f"Generate a JSON structure for a mindmap on the topic: '{topic}'. "
                 "The JSON should include a list of nodes where each node contains 'id', 'label', and 'explanation', "
                 "and optionally 'resources' which is a list of valid URLs from reputable sources that reference "
-                "the online educational organizations (like Coursera or EdX) or educational institutions as well asrelevant news stories or online articles discussing the topic. Do not use generic placeholder URLs. "
+                "online educational organizations (like Coursera or EdX), educational institutions, or relevant news stories and online articles discussing the topic. Do not use generic placeholder URLs. "
                 "Also, include a list of edges where each edge contains 'source' and 'target'. "
                 "Output only valid JSON without any additional text or markdown formatting."
             )
@@ -139,8 +150,12 @@ if st.session_state["mindmap_data"]:
         resources = selected_node.get("resources", [])
         if resources:
             st.sidebar.subheader("Resources")
+            # Validate each URL before displaying
             for res in resources:
-                st.sidebar.write(res)
+                if is_valid_url(res):
+                    st.sidebar.write(res)
+                else:
+                    st.sidebar.write(f"*Invalid URL skipped:* {res}")
 
 # =============================================================================
 # Discussion Chat Section
@@ -148,7 +163,6 @@ if st.session_state["mindmap_data"]:
 st.markdown("## Discussion Chat")
 st.markdown(
     "Use the chat below to discuss the topic or any specific resources. "
-    "This is an open-ended discussion field powered by GPT‑4."
 )
 
 # Chat input field
@@ -164,10 +178,10 @@ if st.button("Send", key="send_chat"):
             conversation.append({"role": entry["role"], "content": entry["message"]})
         try:
             chat_response = openai.chat.completions.create(
-                model="gpt-4",
+                model="gpt-40",
                 messages=conversation,
                 temperature=0.7,
-                max_tokens=200,
+                max_tokens=7000,
             )
             bot_message = chat_response.choices[0].message.content.strip()
             st.session_state.chat_history.append({"role": "assistant", "message": bot_message})
