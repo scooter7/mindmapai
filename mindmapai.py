@@ -144,16 +144,20 @@ if st.session_state["mindmap_data"]:
         key="node_select"
     )
     if selected_label:
-        selected_node = node_options[selected_label]
-        st.sidebar.header(selected_node["label"])
-        st.sidebar.write(selected_node.get("explanation", "No explanation provided."))
-        resources = selected_node.get("resources", [])
-        if resources:
-            st.sidebar.subheader("Resources")
-            # Validate each URL before displaying
-            for res in resources:
-                if is_valid_url(res):
-                    st.sidebar.write(res)
+    selected_node = node_options[selected_label]
+    st.sidebar.header(selected_node["label"])
+    st.sidebar.write(selected_node.get("explanation", "No explanation provided."))
+
+    # Ensure 'resources' is always a list and properly formatted
+    resources = selected_node.get("resources", [])
+    if not isinstance(resources, list):  # Ensure it’s a list
+        resources = [resources] if isinstance(resources, str) else []
+
+    if resources:
+        st.sidebar.subheader("Resources")
+        for res in resources:
+            if isinstance(res, str) and is_valid_url(res):  # Ensure valid URL before displaying
+                st.sidebar.write(f"[{res}]({res})")  # Display clickable links
 
 # =============================================================================
 # Discussion Chat Section
