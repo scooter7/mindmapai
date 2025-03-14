@@ -68,7 +68,7 @@ if st.button("Generate Mindmap"):
     if topic.strip():
         with st.spinner("Generating mindmap..."):
             prompt = (
-                f"Generate a JSON structure for a mindmap on the topic: '{topic}'. "
+                f"Generate a JSON structure for a comprehensive mindmap on the topic: '{topic}'. "
                 "The JSON should include a list of nodes where each node contains 'id', 'label', and 'explanation', "
                 "and optionally 'resources' which is a list of valid URLs from reputable sources that reference "
                 "online educational organizations (like Coursera or EdX), educational institutions, or relevant news stories and online articles discussing the topic. Do not use generic placeholder URLs. "
@@ -79,7 +79,7 @@ if st.button("Generate Mindmap"):
                 response = openai.chat.completions.create(
                     model="gpt-4o",
                     messages=[
-                        {"role": "system", "content": "You generate JSON for interactive mindmaps with valid resource links."},
+                        {"role": "system", "content": "You generate JSON for comprehensive interactive mindmaps with valid resource links."},
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.7,
@@ -154,8 +154,6 @@ if st.session_state["mindmap_data"]:
             for res in resources:
                 if is_valid_url(res):
                     st.sidebar.write(res)
-                else:
-                    st.sidebar.write(f"*Invalid URL skipped:* {res}")
 
 # =============================================================================
 # Discussion Chat Section
