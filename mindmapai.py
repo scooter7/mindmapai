@@ -178,7 +178,7 @@ if st.button("Send", key="send_chat"):
             conversation.append({"role": entry["role"], "content": entry["message"]})
         try:
             chat_response = openai.chat.completions.create(
-                model="gpt-40",
+                model="gpt-4o",
                 messages=conversation,
                 temperature=0.7,
                 max_tokens=7000,
