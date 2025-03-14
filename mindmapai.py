@@ -26,9 +26,9 @@ col1, col2 = st.columns([1, 3])
 with col1:
     if st.button("Load Example Topic"):
         st.session_state["topic_input"] = (
-            "Example: AI and machine learning skills needed for manufacturing. "
+            "AI and machine learning skills needed for manufacturing. "
             "Provide a comprehensive mindmap that covers training programs, "
-            "community colleges, and online courses. Include links to community colleges in Iowa, "
+            "community colleges in Iowa, and online courses. Include links to community colleges in Iowa offering AI training, "
             "online resources, and industry certifications that support learning and development."
         )
 with col2:
@@ -62,13 +62,13 @@ if st.button("Generate Mindmap"):
             )
             try:
                 response = openai.chat.completions.create(
-                    model="gpt-4",
+                    model="gpt-4o",
                     messages=[
                         {"role": "system", "content": "You generate JSON for interactive mindmaps."},
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.7,
-                    max_tokens=1000,
+                    max_tokens=5000,
                 )
                 # Extract and clean up the GPT‑4 output
                 mindmap_json = response.choices[0].message.content.strip()
