@@ -19,7 +19,6 @@ topic = st.text_input(
     key="topic_input"
 )
 
-# Generate button
 if st.button("Generate Mindmap"):
     if topic:
         with st.spinner("Generating mindmap..."):
@@ -27,7 +26,7 @@ if st.button("Generate Mindmap"):
                 f"Generate a JSON structure for a mindmap on the topic: '{topic}'. "
                 "The JSON should include a list of nodes where each node contains 'id', 'label', 'explanation', "
                 "and optionally 'resources' (a list of URLs), and a list of edges where each edge contains 'source' and 'target'. "
-                "Output only valid JSON."
+                "Output only valid JSON without any additional text or markdown formatting."
             )
             try:
                 response = openai.chat.completions.create(
@@ -39,8 +38,23 @@ if st.button("Generate Mindmap"):
                     temperature=0.7,
                     max_tokens=1000,
                 )
-                # Use dot-notation to extract the generated JSON
-                mindmap_json = response.choices[0].message.content
+                # Extract and clean up the GPT‑4 output
+                mindmap_json = response.choices[0].message.content.strip()
+                
+                # Remove markdown code block formatting if present
+                if mindmap_json.startswith("```"):
+                    lines = mindmap_json.splitlines()
+                    # Remove the first line (```json or ```)
+                    if lines[0].startswith("```"):
+                        lines = lines[1:]
+                    # Remove the last line if it's just ```
+                    if lines and lines[-1].strip().startswith("```"):
+                        lines = lines[:-1]
+                    mindmap_json = "\n".join(lines).strip()
+                
+                if not mindmap_json:
+                    raise ValueError("Received empty response from GPT-4.")
+                
                 mindmap_data = json.loads(mindmap_json)
                 st.session_state["mindmap_data"] = mindmap_data
             except Exception as e:
