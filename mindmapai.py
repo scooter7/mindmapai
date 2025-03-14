@@ -11,25 +11,27 @@ openai.api_key = st.secrets["openai"]["api_key"]
 
 st.title("Interactive Mindmapping Tool")
 
-# -------------------------------------------------------------------
+# =============================================================================
 # Session State Initialization
-# -------------------------------------------------------------------
+# =============================================================================
 if "mindmap_data" not in st.session_state:
     st.session_state["mindmap_data"] = None
 if "topic_input" not in st.session_state:
     st.session_state["topic_input"] = ""
+if "chat_history" not in st.session_state:
+    st.session_state["chat_history"] = []  # to store conversation messages
 
-# -------------------------------------------------------------------
-# Example Topic Button
-# -------------------------------------------------------------------
+# =============================================================================
+# Example Topic Button (to auto-fill the topic text area)
+# =============================================================================
 col1, col2 = st.columns([1, 3])
 with col1:
     if st.button("Load Example Topic"):
         st.session_state["topic_input"] = (
-            "AI and machine learning skills needed for manufacturing. "
+            "Example: AI and machine learning skills needed for manufacturing. "
             "Provide a comprehensive mindmap that covers training programs, "
-            "community colleges in Iowa, and online courses. Include links to community colleges in Iowa offering AI training, "
-            "online resources, and industry certifications that support learning and development."
+            "community colleges, online courses, and industry certifications. "
+            "Ensure that any resource links are valid and reference relevant news stories or online articles discussing the topic."
         )
 with col2:
     st.markdown(
@@ -37,9 +39,9 @@ with col2:
         "You can modify the text if needed before generating the mindmap."
     )
 
-# -------------------------------------------------------------------
+# =============================================================================
 # Topic Input Field
-# -------------------------------------------------------------------
+# =============================================================================
 topic = st.text_area(
     "Enter a topic for the mindmap:",
     placeholder="e.g., AI skills needed in the manufacturing industry",
@@ -48,32 +50,34 @@ topic = st.text_area(
     height=100
 )
 
-# -------------------------------------------------------------------
-# Generate Mindmap Button and GPT-4 API Call
-# -------------------------------------------------------------------
+# =============================================================================
+# Generate Mindmap Button and GPT‑4 API Call
+# =============================================================================
 if st.button("Generate Mindmap"):
     if topic.strip():
         with st.spinner("Generating mindmap..."):
+            # Updated prompt instructs GPT‑4 to use only valid, reputable URLs.
             prompt = (
-                f"Generate a JSON structure for a comprehensive mindmap on the topic: '{topic}'. "
-                "The JSON should include a list of nodes where each node contains 'id', 'label', 'explanation', "
-                "and optionally 'resources' (a list of URLs), and a list of edges where each edge contains 'source' and 'target'. "
+                f"Generate a JSON structure for a mindmap on the topic: '{topic}'. "
+                "The JSON should include a list of nodes where each node contains 'id', 'label', and 'explanation', "
+                "and optionally 'resources' which is a list of valid URLs from reputable sources that reference "
+                "relevant news stories or online articles discussing the topic. Do not use generic placeholder URLs "
+                "like 'https://www.example.com/...'. Also, include a list of edges where each edge contains 'source' and 'target'. "
                 "Output only valid JSON without any additional text or markdown formatting."
             )
             try:
                 response = openai.chat.completions.create(
-                    model="gpt-4o",
+                    model="gpt-4",
                     messages=[
-                        {"role": "system", "content": "You generate JSON for interactive mindmaps."},
+                        {"role": "system", "content": "You generate JSON for interactive mindmaps with valid resource links."},
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.7,
-                    max_tokens=5000,
+                    max_tokens=1000,
                 )
                 # Extract and clean up the GPT‑4 output
                 mindmap_json = response.choices[0].message.content.strip()
-                
-                # Remove markdown code block formatting if present
+                # Remove markdown formatting if present
                 if mindmap_json.startswith("```"):
                     lines = mindmap_json.splitlines()
                     if lines[0].startswith("```"):
@@ -81,17 +85,14 @@ if st.button("Generate Mindmap"):
                     if lines and lines[-1].strip().startswith("```"):
                         lines = lines[:-1]
                     mindmap_json = "\n".join(lines).strip()
-                
-                # Extract only the JSON part by taking the substring from the first '{' to the last '}'
+                # Extract the JSON substring between the first '{' and last '}'
                 start_index = mindmap_json.find("{")
                 end_index = mindmap_json.rfind("}")
                 if start_index == -1 or end_index == -1:
                     raise ValueError("Could not find valid JSON boundaries in the response.")
                 mindmap_json = mindmap_json[start_index:end_index + 1]
-                
                 if not mindmap_json:
                     raise ValueError("Received empty JSON after extraction from GPT-4 response.")
-                
                 mindmap_data = json.loads(mindmap_json)
                 st.session_state["mindmap_data"] = mindmap_data
             except Exception as e:
@@ -99,20 +100,21 @@ if st.button("Generate Mindmap"):
     else:
         st.error("Please enter a topic.")
 
-# -------------------------------------------------------------------
+# =============================================================================
 # Display Interactive Mindmap
-# -------------------------------------------------------------------
+# =============================================================================
 if st.session_state["mindmap_data"]:
     mindmap_data = st.session_state["mindmap_data"]
 
-    # Prepare nodes and edges for visualization
+    # Prepare nodes and edges for streamlit-agraph visualization
     nodes = [Node(id=node["id"], label=node["label"], size=20)
              for node in mindmap_data.get("nodes", [])]
     edges = [Edge(source=edge["source"], target=edge["target"])
              for edge in mindmap_data.get("edges", [])]
 
+    # Configure the agraph display with increased canvas width and node spacing.
     config = Config(
-        width=1200,           # Increased canvas width
+        width=1200,           # Increased canvas width for more horizontal space
         height=500,
         directed=True,
         physics=True,
@@ -124,7 +126,7 @@ if st.session_state["mindmap_data"]:
     st.subheader("Interactive Mindmap")
     agraph(nodes=nodes, edges=edges, config=config)
 
-    # Node Detail Display via dropdown
+    # Optional: Node Details via a dropdown (you may remove this if using only chat)
     node_options = {node["label"]: node for node in mindmap_data.get("nodes", [])}
     selected_label = st.selectbox(
         "Select a node to view details:",
@@ -140,3 +142,43 @@ if st.session_state["mindmap_data"]:
             st.sidebar.subheader("Resources")
             for res in resources:
                 st.sidebar.write(res)
+
+# =============================================================================
+# Discussion Chat Section
+# =============================================================================
+st.markdown("## Discussion Chat")
+st.markdown(
+    "Use the chat below to discuss the topic or any specific resources. "
+    "This is an open-ended discussion field powered by GPT‑4."
+)
+
+# Chat input field
+chat_input = st.text_input("Your message:", key="chat_input")
+if st.button("Send", key="send_chat"):
+    if chat_input.strip():
+        # Append the user's message to chat history
+        st.session_state.chat_history.append({"role": "user", "message": chat_input})
+        # Build conversation context with an initial system prompt
+        conversation = [{"role": "system", "content": "You are an expert assisting with a discussion on the provided mindmap topic and resources."}]
+        conversation.extend(st.session_state.chat_history)
+        try:
+            chat_response = openai.chat.completions.create(
+                model="gpt-4",
+                messages=conversation,
+                temperature=0.7,
+                max_tokens=200,
+            )
+            bot_message = chat_response.choices[0].message.content.strip()
+            st.session_state.chat_history.append({"role": "assistant", "message": bot_message})
+        except Exception as e:
+            st.error(f"Error generating chat response: {e}")
+    else:
+        st.error("Please enter a message before sending.")
+
+# Display chat history
+st.markdown("### Chat History")
+for entry in st.session_state.chat_history:
+    if entry["role"] == "user":
+        st.markdown(f"**User:** {entry['message']}")
+    else:
+        st.markdown(f"**Assistant:** {entry['message']}")
