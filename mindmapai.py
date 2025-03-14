@@ -1,7 +1,7 @@
 import streamlit as st
 import openai
 import json
-from streamlit_cytoscape import st_cytoscape
+from streamlit_agraph import agraph, Node, Edge, Config
 
 # Set your OpenAI API key from Streamlit secrets
 openai.api_key = st.secrets["openai"]["api_key"]
@@ -31,7 +31,6 @@ if st.button("Generate Mindmap") and topic:
                 temperature=0.7,
                 max_tokens=1000,
             )
-            
             mindmap_json = response['choices'][0]['message']['content']
             mindmap_data = json.loads(mindmap_json)
         except Exception as e:
@@ -42,48 +41,37 @@ if st.button("Generate Mindmap") and topic:
         st.subheader("Generated Mindmap Data")
         st.json(mindmap_data)
 
-        # Transform nodes and edges into Cytoscape elements.
-        cytoscape_elements = []
-
-        # Process nodes: wrap each node in a 'data' dictionary.
+        # Create Node and Edge objects for streamlit-agraph.
+        nodes = []
         for node in mindmap_data.get("nodes", []):
-            cytoscape_elements.append({
-                "data": {
-                    "id": node["id"],
-                    "label": node["label"],
-                    "explanation": node.get("explanation", ""),
-                    "resources": node.get("resources", [])
-                }
-            })
-
-        # Process edges.
+            nodes.append(Node(id=node["id"], label=node["label"], size=20))
+        
+        edges = []
         for edge in mindmap_data.get("edges", []):
-            cytoscape_elements.append({
-                "data": {
-                    "source": edge["source"],
-                    "target": edge["target"]
-                }
-            })
+            edges.append(Edge(source=edge["source"], target=edge["target"]))
 
-        st.subheader("Interactive Mindmap")
-        # Render the mindmap using streamlit-cytoscape.
-        cyto_response = st_cytoscape(
-            elements=cytoscape_elements,
-            layout={"name": "breadthfirst"},
-            style={"width": "100%", "height": "600px"},
+        # Configure agraph display options
+        config = Config(
+            width=800,
+            height=500,
+            directed=True,
+            physics=True,
+            nodeHighlightBehavior=True,
+            highlightColor="#F7A7A6",
         )
 
-        # When a node is clicked, st_cytoscape returns event data.
-        if cyto_response:
-            selected_node = cyto_response.get("selectedNode")
-            if selected_node:
-                # Locate the node details from the original mindmap_data.
-                node_details = next((node for node in mindmap_data.get("nodes", []) if node["id"] == selected_node), None)
-                if node_details:
-                    st.sidebar.header(node_details["label"])
-                    st.sidebar.write(node_details.get("explanation", "No explanation provided."))
-                    resources = node_details.get("resources", [])
-                    if resources:
-                        st.sidebar.subheader("Resources")
-                        for res in resources:
-                            st.sidebar.write(res)
+        st.subheader("Interactive Mindmap")
+        agraph(nodes=nodes, edges=edges, config=config)
+
+        # Additional interactivity: select a node to view details.
+        node_options = {node["label"]: node for node in mindmap_data.get("nodes", [])}
+        selected_label = st.selectbox("Select a node to view details:", options=list(node_options.keys()))
+        if selected_label:
+            selected_node = node_options[selected_label]
+            st.sidebar.header(selected_node["label"])
+            st.sidebar.write(selected_node.get("explanation", "No explanation provided."))
+            resources = selected_node.get("resources", [])
+            if resources:
+                st.sidebar.subheader("Resources")
+                for res in resources:
+                    st.sidebar.write(res)
