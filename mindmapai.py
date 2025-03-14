@@ -55,7 +55,7 @@ if st.button("Generate Mindmap"):
     if topic.strip():
         with st.spinner("Generating mindmap..."):
             prompt = (
-                f"Generate a JSON structure for a mindmap on the topic: '{topic}'. "
+                f"Generate a JSON structure for a comprehensive mindmap on the topic: '{topic}'. "
                 "The JSON should include a list of nodes where each node contains 'id', 'label', 'explanation', "
                 "and optionally 'resources' (a list of URLs), and a list of edges where each edge contains 'source' and 'target'. "
                 "Output only valid JSON without any additional text or markdown formatting."
