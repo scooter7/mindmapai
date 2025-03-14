@@ -31,7 +31,8 @@ if st.button("Generate Mindmap") and topic:
                 temperature=0.7,
                 max_tokens=1000,
             )
-            mindmap_json = response['choices'][0]['message']['content']
+            # Use dot-notation instead of subscripting the response object
+            mindmap_json = response.choices[0].message.content
             mindmap_data = json.loads(mindmap_json)
         except Exception as e:
             st.error(f"Error generating mindmap: {e}")
