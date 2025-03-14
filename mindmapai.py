@@ -12,11 +12,12 @@ st.title("Interactive Mindmapping Tool")
 if "mindmap_data" not in st.session_state:
     st.session_state["mindmap_data"] = None
 
-# Topic input
-topic = st.text_input(
+# Use a larger text area for topic input
+topic = st.text_area(
     "Enter a topic for the mindmap:",
     placeholder="e.g., AI skills needed in the manufacturing industry",
-    key="topic_input"
+    key="topic_input",
+    height=100
 )
 
 if st.button("Generate Mindmap"):
@@ -44,10 +45,8 @@ if st.button("Generate Mindmap"):
                 # Remove markdown code block formatting if present
                 if mindmap_json.startswith("```"):
                     lines = mindmap_json.splitlines()
-                    # Remove the first line (```json or ```)
                     if lines[0].startswith("```"):
                         lines = lines[1:]
-                    # Remove the last line if it's just ```
                     if lines and lines[-1].strip().startswith("```"):
                         lines = lines[:-1]
                     mindmap_json = "\n".join(lines).strip()
@@ -75,7 +74,8 @@ if st.session_state["mindmap_data"]:
     for edge in mindmap_data.get("edges", []):
         edges.append(Edge(source=edge["source"], target=edge["target"]))
 
-    # Configure agraph display options
+    # Configure agraph display options.
+    # 'linkDistance' is increased to provide ample space between nodes.
     config = Config(
         width=800,
         height=500,
@@ -83,12 +83,14 @@ if st.session_state["mindmap_data"]:
         physics=True,
         nodeHighlightBehavior=True,
         highlightColor="#F7A7A6",
+        linkDistance=200  # Adjust this value to increase or decrease spacing
     )
 
     st.subheader("Interactive Mindmap")
     agraph(nodes=nodes, edges=edges, config=config)
 
-    # Additional interactivity: select a node to view its details.
+    # Additional interactivity: using the dropdown below to select a node and display its details in the sidebar.
+    # (If you prefer node-click interactivity, additional event handling from streamlit-agraph may be required.)
     node_options = {node["label"]: node for node in mindmap_data.get("nodes", [])}
     selected_label = st.selectbox(
         "Select a node to view details:",
